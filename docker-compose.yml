@@ -1,0 +1,55 @@
+services:
+  lenslab_app:
+    image: lenslab-app:latest
+    platform: linux/arm64/v8
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    container_name: lenslab_web
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lenslab_user}:${POSTGRES_PASSWORD:-lenslab_password}@lenslab_db:5432/${POSTGRES_DB:-lenslab_db}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-replace-with-a-long-random-secret}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEXTAUTH_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      AUTH_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      AUTH_TRUST_HOST: "true"
+      GOOGLE_AUTH_CLIENT_ID: ${GOOGLE_AUTH_CLIENT_ID:-}
+      GOOGLE_AUTH_CLIENT_SECRET: ${GOOGLE_AUTH_CLIENT_SECRET:-}
+      GOOGLE_AUTH_REDIRECT_URI: ${GOOGLE_AUTH_REDIRECT_URI:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
+      GOOGLE_DRIVE_ROOT_FOLDER_ID: ${GOOGLE_DRIVE_ROOT_FOLDER_ID:-}
+      PRISMA_DB_PUSH: ${PRISMA_DB_PUSH:-true}
+      SEED_DEFAULT_USERS: ${SEED_DEFAULT_USERS:-true}
+      SEED_DEFAULT_PASSWORD: ${SEED_DEFAULT_PASSWORD:-password123}
+    depends_on:
+      lenslab_db:
+        condition: service_healthy
+
+  lenslab_db:
+    image: postgres:15-alpine
+    container_name: lenslab_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lenslab_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lenslab_password}
+      POSTGRES_DB: ${POSTGRES_DB:-lenslab_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - lenslab_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lenslab_user} -d ${POSTGRES_DB:-lenslab_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  lenslab_pgdata:

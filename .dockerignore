@@ -1,0 +1,13 @@
+node_modules
+.next
+public/uploads
+npm-debug.log
+*.tar
+*.tar.gz
+*.zip
+*.log
+*.tsbuildinfo
+.env.local
+.env
+.env.*
+.git

@@ -1,0 +1,389 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MENTOR
+  STUDENT
+}
+
+enum AuthProvider {
+  CREDENTIALS
+  GOOGLE
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  CASE_STUDY
+  IMAGE_BASED
+}
+
+enum AssetVisibility {
+  PUBLIC
+  STUDENT_ONLY
+  MENTOR_ONLY
+}
+
+enum WorkStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+  REVISION
+  APPROVED
+  PUBLISHED
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+model User {
+  id             String              @id @default(cuid())
+  name           String
+  email          String              @unique
+  passwordHash   String?
+  role           Role                @default(STUDENT)
+  className      String?
+  avatarUrl      String?
+  googleId       String?             @unique
+  provider       AuthProvider        @default(CREDENTIALS)
+  bio            String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  materials      Material[]          @relation("MaterialCreatedBy")
+  quizzes        Quiz[]              @relation("QuizCreatedBy")
+  progress       MaterialProgress[]
+  attempts       QuizAttempt[]
+  simulation     SimulationAttempt[]
+  uploadedAssets Asset[]             @relation("AssetUploadedBy")
+  downloads      AssetDownload[]
+  works          StudentWork[]       @relation("StudentWorks")
+  reviewedWorks  StudentWork[]       @relation("ReviewedWorks")
+  comments       WorkComment[]
+  badges         UserBadge[]
+  scoreLogs      ScoreLog[]
+  conversations  ChatConversation[]
+  chatMessages   ChatMessage[]
+
+  @@index([role])
+  @@index([className])
+}
+
+model Category {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  description String?
+  type        String       @default("MATERIAL")
+  createdAt   DateTime     @default(now())
+  materials   Material[]
+}
+
+model Material {
+  id          String             @id @default(cuid())
+  title       String
+  slug        String             @unique
+  summary     String
+  content     String
+  thumbnail   String?
+  status      PublishStatus      @default(DRAFT)
+  orderNumber Int                @default(0)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  categoryId  String
+  createdById String
+
+  category    Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdBy   User               @relation("MaterialCreatedBy", fields: [createdById], references: [id])
+  progress    MaterialProgress[]
+  quizzes     Quiz[]
+
+  @@index([status])
+  @@index([categoryId])
+}
+
+model MaterialProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  materialId  String
+  completed   Boolean  @default(false)
+  progress    Int      @default(0)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  material    Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, materialId])
+}
+
+model Quiz {
+  id              String        @id @default(cuid())
+  title           String
+  description     String
+  durationMinutes Int           @default(15)
+  minimumScore    Int           @default(70)
+  status          QuizStatus    @default(DRAFT)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  materialId      String?
+  createdById     String
+
+  material        Material?     @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  createdBy       User          @relation("QuizCreatedBy", fields: [createdById], references: [id])
+  questions       Question[]
+  attempts        QuizAttempt[]
+
+  @@index([status])
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  quizId        String
+  questionText  String
+  questionType  QuestionType @default(MULTIPLE_CHOICE)
+  image         String?
+  optionA       String?
+  optionB       String?
+  optionC       String?
+  optionD       String?
+  correctAnswer String
+  explanation   String?
+  point         Int          @default(10)
+  createdAt     DateTime     @default(now())
+
+  quiz          Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers       QuizAnswer[]
+}
+
+model QuizAttempt {
+  id           String       @id @default(cuid())
+  userId       String
+  quizId       String
+  score        Int          @default(0)
+  totalPoint   Int          @default(0)
+  passed       Boolean      @default(false)
+  startedAt    DateTime     @default(now())
+  submittedAt  DateTime?
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz         Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers      QuizAnswer[]
+
+  @@index([userId])
+  @@index([quizId])
+}
+
+model QuizAnswer {
+  id           String      @id @default(cuid())
+  attemptId    String
+  questionId   String
+  selected     String
+  isCorrect    Boolean     @default(false)
+  earnedPoint  Int         @default(0)
+
+  attempt      QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question     Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model SimulationScenario {
+  id                    String              @id @default(cuid())
+  title                 String
+  slug                  String              @unique
+  description           String
+  idealIso              Int
+  idealAperture         String
+  idealShutter          String
+  idealWhiteBalance     String
+  idealFocalLength      String
+  lighting              String
+  movement              String
+  goal                  String
+  createdAt             DateTime            @default(now())
+
+  attempts              SimulationAttempt[]
+}
+
+model SimulationAttempt {
+  id               String             @id @default(cuid())
+  userId           String
+  scenarioId        String
+  iso              Int
+  aperture         String
+  shutterSpeed     String
+  whiteBalance     String
+  focalLength      String
+  exposureScore    Int
+  shutterScore     Int
+  apertureScore    Int
+  isoScore         Int
+  wbScore          Int
+  totalScore       Int
+  feedback         String
+  createdAt        DateTime           @default(now())
+
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenario         SimulationScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id            String          @id @default(cuid())
+  title         String
+  description   String?
+  category      String
+  fileName      String
+  fileType      String
+  fileSize      Int             @default(0)
+  driveFileId   String?
+  downloadUrl   String?
+  uploadedById  String
+  visibility    AssetVisibility @default(STUDENT_ONLY)
+  totalDownload Int             @default(0)
+  status        PublishStatus   @default(PUBLISHED)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  uploadedBy    User            @relation("AssetUploadedBy", fields: [uploadedById], references: [id])
+  downloads     AssetDownload[]
+
+  @@index([category])
+  @@index([status])
+}
+
+model AssetDownload {
+  id        String   @id @default(cuid())
+  userId    String
+  assetId   String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([assetId])
+}
+
+model StudentWork {
+  id             String        @id @default(cuid())
+  title          String
+  description    String
+  category       String
+  caption        String?
+  noteForMentor  String?
+  fileName       String
+  fileType       String
+  fileSize       Int           @default(0)
+  driveFileId    String?
+  previewUrl     String?
+  downloadUrl    String?
+  status         WorkStatus    @default(SUBMITTED)
+  score          Int?
+  feedback       String?
+  showFeedback   Boolean       @default(false)
+  studentId      String
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  student        User          @relation("StudentWorks", fields: [studentId], references: [id], onDelete: Cascade)
+  reviewedBy     User?         @relation("ReviewedWorks", fields: [reviewedById], references: [id])
+  comments       WorkComment[]
+
+  @@index([status])
+  @@index([category])
+}
+
+model WorkComment {
+  id        String      @id @default(cuid())
+  workId    String
+  userId    String
+  content   String
+  createdAt DateTime    @default(now())
+
+  work      StudentWork @relation(fields: [workId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String
+  icon        String
+  rule        String
+  minScore    Int?
+  createdAt   DateTime    @default(now())
+  users       UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  awardedAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+}
+
+model ScoreLog {
+  id          String   @id @default(cuid())
+  userId      String
+  activity    String
+  points      Int
+  referenceId String?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([activity])
+}
+
+model ChatConversation {
+  id        String        @id @default(cuid())
+  userId    String
+  title     String        @default("Konsultasi JurnalisBot")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  userId         String?
+  role           ChatRole
+  content        String
+  createdAt      DateTime         @default(now())
+
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId])
+}
