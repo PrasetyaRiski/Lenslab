@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Role } from "@prisma/client";
+import type { Role } from "@prisma/client";
 import { Camera, LayoutDashboard, BookOpen, ClipboardList, Trophy, UploadCloud, Images, Bot, FileDown, Users, Settings, BadgeCheck, HelpCircle, SlidersHorizontal, Award, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -51,12 +51,12 @@ const mentorLinks = [
   ["Profil", "/mentor/profile", UserRound]
 ] as const;
 
-export function Sidebar({ role }: { role: Role }) {
+export function Sidebar({ role, className, onNavigate }: { role: Role; className?: string; onNavigate?: () => void }) {
   const pathname = usePathname();
   const links = role === "STUDENT" ? studentLinks : role === "MENTOR" ? mentorLinks : adminLinks;
   return (
-    <aside className="hidden min-h-screen w-72 border-r border-slate-200 bg-white p-4 lg:block">
-      <Link href="/" className="mb-6 flex items-center gap-2 rounded-2xl bg-slate-950 p-3 text-white">
+    <aside className={cn("min-h-screen w-72 shrink-0 border-r border-slate-200 bg-white p-4", className ?? "hidden lg:block")}>
+      <Link href="/" onClick={onNavigate} className="mb-6 flex items-center gap-2 rounded-2xl bg-slate-950 p-3 text-white">
         <span className="rounded-xl bg-amberbrand p-2"><Camera className="h-5 w-5" /></span>
         <span className="font-black">LensLab</span>
       </Link>
@@ -64,7 +64,7 @@ export function Sidebar({ role }: { role: Role }) {
         {links.map(([label, href, Icon]) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
-          <Link key={`${label}-${href}`} href={href} className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-amber-50 hover:text-amber-700", active && "bg-amber-50 text-amber-700")}>
+          <Link key={`${label}-${href}`} href={href} onClick={onNavigate} className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-amber-50 hover:text-amber-700", active && "bg-amber-50 text-amber-700")}>
             <Icon className="h-4 w-4" /> {label}
           </Link>
           );

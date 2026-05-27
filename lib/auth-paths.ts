@@ -142,7 +142,11 @@ function firstHeaderValue(value: string | null | undefined) {
 }
 
 export function getAppBaseUrl(request?: RequestLike) {
-  const configuredUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  const configuredUrl =
+    process.env.AUTH_URL?.trim() ||
+    process.env.NEXTAUTH_URL?.trim() ||
+    process.env.APP_URL?.trim() ||
+    process.env["NEXT_PUBLIC_APP_URL"]?.trim();
   if (configuredUrl) return trimTrailingSlash(configuredUrl);
 
   const forwardedHost = firstHeaderValue(request?.headers?.get("x-forwarded-host"));

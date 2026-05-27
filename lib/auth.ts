@@ -20,10 +20,32 @@ function getAuthCookieOptions(maxAge = AUTH_COOKIE_MAX_AGE) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookie(),
     path: "/",
     maxAge
   };
+}
+
+function shouldUseSecureCookie() {
+  const explicit = process.env.AUTH_COOKIE_SECURE?.trim().toLowerCase();
+  if (["1", "true", "yes"].includes(explicit ?? "")) return true;
+  if (["0", "false", "no"].includes(explicit ?? "")) return false;
+
+  const configuredUrl =
+    process.env.AUTH_URL?.trim() ||
+    process.env.NEXTAUTH_URL?.trim() ||
+    process.env.APP_URL?.trim() ||
+    process.env["NEXT_PUBLIC_APP_URL"]?.trim();
+
+  if (configuredUrl) {
+    try {
+      return new URL(configuredUrl).protocol === "https:";
+    } catch {
+      return process.env.NODE_ENV === "production";
+    }
+  }
+
+  return process.env.NODE_ENV === "production";
 }
 
 export async function hashPassword(password: string) {
